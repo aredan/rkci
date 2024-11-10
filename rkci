@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+set -euo pipefail
+
+# Functions to print color text.
+error_color_text () { gum style --foreground 1 "$1"
+}
+success_color_text () { gum style --foreground 2 "$1"
+}
+warning_color_text () { gum style --foreground 3 "$1"
+}
+info_color_text () { gum style --foreground 14 "$1"
+}
+
+#look for gum command
+if ! command -v gum 2>&1 >/dev/null
+then
+    echo "$(warning_color_text "WARN:") gum command could not be found"
+    exit 1
+fi  
+# look for kubectl command
+if ! command -v kubectl 2>&1 >/dev/null
+then
+    echo "$(warning_color_text "WARN:") kubectl command could not be found"
+    exit 1
+fi
+# look for rancher command
+if ! command -v rancher 2>&1 >/dev/null
+then
+    echo "$(warning_color_text "WARN:") rancher command could not be found"
+    exit 1
+fi
+
+# Select a cluster from Rancher
+echo "$(info_color_text "INFO:") Select a cluster to import Kubeconfig"
+cluster_name_dirty=$(rancher cluster ls | gum choose)
+#clean selection
+cluster_name=$(echo $cluster_name_dirty | awk '{print $3}')
+
+# print selected cluster
+echo "$(success_color_text "OK:") Selected cluster: $cluster_name"
+
+# create folder for cluster kubeconfig
+mkdir -p ${PWD}/$cluster_name
+# Get kubeconfig
+rancher cluster kf $cluster_name > ${PWD}/$cluster_name/kubeconfig
+
+# print kubeconfig path
+echo "$(success_color_text "OK:") Kubeconfig saved to: ${PWD}/$cluster_name/kubeconfig"
+
+# enabling direnv
+cat << EOF > ${PWD}/$cluster_name/.envrc
+##
+export EDITOR=nvim
+export KUBECONFIG=$(pwd)/$cluster_name/kubeconfig
+export GITHUB_USER=aredan
+export KUBE_PS1_ENABLED=on
+EOF
+
+echo "$(info_color_text "INFO:") an .envrc file has been created in the cluster folder."
+echo "$(info_color_text "INFO:") enabling direnv, ran: direnv allow"
+cd ${PWD}/$cluster_name/ && direnv allow
