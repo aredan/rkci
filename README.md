@@ -19,4 +19,4 @@ Just copy the bash script, make  it executable and run it.
 
 ## screenshot
 
-![using rkci](images/using-rkci.png)
+![using rkci](images/using-rkci.jpg)
