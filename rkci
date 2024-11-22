@@ -32,11 +32,10 @@ then
 fi
 
 # Select a cluster from Rancher
-echo "$(info_color_text "INFO:") Select a cluster to import Kubeconfig"
+echo "$(info_color_text "INFO:") Select a cluster to import Kubeconfig from:"
 cluster_name_dirty=$(rancher cluster ls | gum choose)
-#clean selection
+# clean selection
 cluster_name=$(echo $cluster_name_dirty | awk '{print $3}')
-
 # print selected cluster
 echo "$(success_color_text "OK:") Selected cluster: $cluster_name"
 
@@ -44,7 +43,8 @@ echo "$(success_color_text "OK:") Selected cluster: $cluster_name"
 mkdir -p ${PWD}/$cluster_name
 # Get kubeconfig
 rancher cluster kf $cluster_name > ${PWD}/$cluster_name/kubeconfig
-
+# change permissions
+chmod 600 ${PWD}/$cluster_name/kubeconfig
 # print kubeconfig path
 echo "$(success_color_text "OK:") Kubeconfig saved to: ${PWD}/$cluster_name/kubeconfig"
 
@@ -57,6 +57,6 @@ export GITHUB_USER=aredan
 export KUBE_PS1_ENABLED=on
 EOF
 
-echo "$(info_color_text "INFO:") an .envrc file has been created in the cluster folder."
+echo "$(info_color_text "INFO:") an .envrc file has been created in the cluster directory."
 echo "$(info_color_text "INFO:") enabling direnv, ran: direnv allow"
 cd ${PWD}/$cluster_name/ && direnv allow
