@@ -12,51 +12,92 @@ warning_color_text () { gum style --foreground 3 "$1"
 info_color_text () { gum style --foreground 14 "$1"
 }
 
-#look for gum command
-if ! command -v gum 2>&1 >/dev/null
-then
-    echo "$(warning_color_text "WARN:") gum command could not be found"
-    exit 1
-fi  
-# look for kubectl command
-if ! command -v kubectl 2>&1 >/dev/null
-then
-    echo "$(warning_color_text "WARN:") kubectl command could not be found"
-    exit 1
-fi
-# look for rancher command
-if ! command -v rancher 2>&1 >/dev/null
-then
-    echo "$(warning_color_text "WARN:") rancher command could not be found"
-    exit 1
-fi
+dependencies () {
+    #look for gum command
+    if ! command -v gum 2>&1 >/dev/null
+    then
+        echo "$(warning_color_text "WARN:") gum command could not be found"
+        exit 1
+    fi  
+    # look for kubectl command
+    if ! command -v kubectl 2>&1 >/dev/null
+    then
+        echo "$(warning_color_text "WARN:") kubectl command could not be found"
+        exit 1
+    fi
 
-# Select a cluster from Rancher
-echo "$(info_color_text "INFO:") Select a cluster to import Kubeconfig from:"
-cluster_name_dirty=$(rancher cluster ls | gum choose)
-# clean selection
-cluster_name=$(echo $cluster_name_dirty | awk '{print $3}')
-# print selected cluster
-echo "$(success_color_text "OK:") Selected cluster: $cluster_name"
+}
 
-# create folder for cluster kubeconfig
-mkdir -p ${PWD}/$cluster_name
-# Get kubeconfig
-rancher cluster kf $cluster_name > ${PWD}/$cluster_name/kubeconfig
-# change permissions
-chmod 600 ${PWD}/$cluster_name/kubeconfig
-# print kubeconfig path
-echo "$(success_color_text "OK:") Kubeconfig saved to: ${PWD}/$cluster_name/kubeconfig"
+# validate that Rancher token is still valid.
+rancher_token_valid () {
+    rancher_url=$(rancher settings get server-url)
+    if [ -z "$rancher_url" ]
+    then
+        echo "$(error_color_text "ERROR:") Rancher URL is not set. Please run 'rancher login' to set it."
+        exit 1
+    fi
+    rancher_version=$(rancher --version | awk '{print $2}')
+    if [ -z "$rancher_version" ]
+    then
+        echo "$(error_color_text "ERROR:") Rancher CLI is not installed or not in the PATH."
+        exit 1
+    fi
+    rancher_version_major=$(echo $rancher_version | awk -F. '{print $1}')
+    if [ $rancher_version_major -lt 2 ]
+    then
+        echo "$(error_color_text "ERROR:") Rancher CLI version is too old. Please update to version 2.x or later."
+        exit 1
+    fi
+}
 
-# enabling direnv
-cat << EOF > ${PWD}/$cluster_name/.envrc
-##
-export EDITOR=nvim
-export KUBECONFIG=$(pwd)/$cluster_name/kubeconfig
-export GITHUB_USER=aredan
-export KUBE_PS1_ENABLED=on
+select_cluster () {
+    # Select a cluster from Rancher
+    echo "$(info_color_text "INFO:") Select a cluster to import Kubeconfig from:"
+    cluster_name_dirty=$(rancher cluster ls | gum choose)
+    # clean selection
+    cluster_name=$(echo $cluster_name_dirty | awk '{print $3}')
+    # print selected cluster
+    echo "$(success_color_text "OK:") Selected cluster: $cluster_name"
+
+}
+
+create_cluster_dir () {
+    # create folder for cluster kubeconfig
+    mkdir -p ${PWD}/$cluster_name
+    # Get kubeconfig
+    rancher cluster kf $cluster_name > ${PWD}/$cluster_name/kubeconfig
+    # change permissions
+    chmod 600 ${PWD}/$cluster_name/kubeconfig
+    # print kubeconfig path
+    echo "$(success_color_text "OK:") Kubeconfig saved to: ${PWD}/$cluster_name/kubeconfig"
+}
+
+enabling_direnv () {
+    # enabling direnv
+    cat << EOF > ${PWD}/$cluster_name/.envrc
+    ##
+    export EDITOR=nvim
+    export KUBECONFIG=$(pwd)/$cluster_name/kubeconfig
+    export GITHUB_USER=aredan
+    export KUBE_PS1_ENABLED=on
 EOF
 
-echo "$(info_color_text "INFO:") an .envrc file has been created in the cluster directory."
-echo "$(info_color_text "INFO:") enabling direnv, ran: direnv allow"
-cd ${PWD}/$cluster_name/ && direnv allow
+    echo "$(info_color_text "INFO:") an .envrc file has been created in the cluster directory."
+    echo "$(info_color_text "INFO:") enabling direnv, ran: direnv allow"
+    cd ${PWD}/$cluster_name/ && direnv allow
+
+}
+
+
+# call dependencies function
+dependencies
+rancher_token_valid
+
+# select cluster
+select_cluster
+
+# create cluster directory
+create_cluster_dir
+
+# enable direnv
+enabling_direnv
