@@ -42,12 +42,6 @@ rancher_token_valid () {
         echo "$(error_color_text "ERROR:") Rancher CLI is not installed or not in the PATH."
         exit 1
     fi
-    rancher_version_major=$(echo $rancher_version | awk -F. '{print $1}')
-    if [ $rancher_version_major -lt 2 ]
-    then
-        echo "$(error_color_text "ERROR:") Rancher CLI version is too old. Please update to version 2.x or later."
-        exit 1
-    fi
 }
 
 select_cluster () {
